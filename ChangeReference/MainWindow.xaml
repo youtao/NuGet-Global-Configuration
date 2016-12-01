@@ -14,11 +14,12 @@
                  Text=".git;.svn;.vs;.vscode;node_modules;bin;obj"  VerticalAlignment="Top" Width="237"/>
         <Label x:Name="label2" Content="项目扩展名:" HorizontalAlignment="Left" Margin="310,43,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.031,0.595"/>
         <TextBox x:Name="extension_TextBox" HorizontalAlignment="Left" Height="23" Margin="383,43,0,0" TextWrapping="NoWrap" Text=".csproj" VerticalAlignment="Top" Width="124"/>
-        <Label x:Name="label3" Content="from:" HorizontalAlignment="Left" Margin="32,70,0,0" VerticalAlignment="Top"/>
-        <TextBox x:Name="from_TextBox" HorizontalAlignment="Left" Height="23" Margin="73,75,0,0" TextWrapping="Wrap" Text="..\packages" VerticalAlignment="Top" Width="178"/>
+        <Label x:Name="label3" Content="from(正则):" HorizontalAlignment="Left" Margin="0,73,0,0" VerticalAlignment="Top"/>
+        <TextBox x:Name="from_TextBox" HorizontalAlignment="Left" Height="23" Margin="73,75,0,0" TextWrapping="Wrap" Text="(..\\)+packages" VerticalAlignment="Top" Width="178"/>
         <Label x:Name="label4" Content="to:" HorizontalAlignment="Left" Margin="251,75,0,0" VerticalAlignment="Top" RenderTransformOrigin="-0.135,0.757"/>
         <TextBox x:Name="to_TextBox" HorizontalAlignment="Left" Height="23" Margin="276,75,0,0" TextWrapping="Wrap" Text="C:\Global NuGet Packages" VerticalAlignment="Top" Width="231"/>
         <Button x:Name="ok_Button" Content="确定" HorizontalAlignment="Left" Margin="432,110,0,0" VerticalAlignment="Top" Width="75" Click="ok_Button_Click"/>
-        <TextBox x:Name="messages_TextBox" HorizontalAlignment="Left" Height="175" Margin="0,134,0,0" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Background="DarkGray" IsReadOnly="True" Width="507"/>
+        <TextBox x:Name="messages_TextBox" HorizontalAlignment="Left" Height="175" Margin="0,134,0,0" TextWrapping="Wrap"
+                 Text="" VerticalScrollBarVisibility="Auto" VerticalAlignment="Top" Background="DarkGray" IsReadOnly="True" Width="507"/>
     </Grid>
 </Window>

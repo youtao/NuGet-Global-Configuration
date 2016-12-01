@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -22,7 +23,7 @@ namespace ChangeReference
     public partial class MainWindow : Window
     {
         private List<string> excludes = new List<string>();
-        private List<string> projFiles = new List<string>();
+        //private List<string> projFiles = new List<string>();
         private string extension = string.Empty;
         private string from = string.Empty;
         private string to = string.Empty;
@@ -35,7 +36,6 @@ namespace ChangeReference
         private void ok_Button_Click(object sender, RoutedEventArgs e)
         {
             this.excludes.Clear();
-            this.projFiles.Clear();
             this.messages_TextBox.Clear();
 
             var exclude = this.exclude_TextBox.Text.Split(';');
@@ -58,85 +58,99 @@ namespace ChangeReference
             }
             else
             {
-                this.GetDir(path);
-                this.Change();
-                MessageBox.Show("成功!");
+                this.ok_Button.IsEnabled = false;
+                this.ok_Button.Content = "进行中...";
+                Task.Run(() => this.Change(path));
             }
         }
 
-        private void Change()
+        private void Change(string projectPath)
         {
-            foreach (var path in projFiles)
+            try
             {
-                XDocument document = XDocument.Load(path);
-                XElement root = document.Root;
-                if (root == null) continue;
-
-                // Microsoft.CodeDom.Providers.DotNetCompilerPlatform
-                // Microsoft.Net.Compilers
-                foreach (var import in root.Elements().Where(e => e.Name.LocalName == "Import"))
+                var projFiles = Directory.GetFiles(projectPath, "*.csproj", SearchOption.AllDirectories).ToList();
+                foreach (var path in projFiles)
                 {
-                    var project = import.Attribute("Project");
-                    if (project != null)
-                        project.Value = project.Value.Replace(this.from, this.to);
+                    XDocument document = XDocument.Load(path);
+                    XElement root = document.Root;
+                    if (root == null) continue;
 
-                    var condition = import.Attribute("Condition");
-                    if (condition != null)
-                        condition.Value = condition.Value.Replace(this.from, this.to);
-                }
-
-                // 此项目引用这台计算机上缺少的 NuGet 程序包。
-                foreach (var target in root.Elements().Where(e => e.Name.LocalName == "Target"))
-                {
-                    var nameAttribute = target.Attribute("Name");
-                    if (nameAttribute == null || nameAttribute.Value != "EnsureNuGetPackageBuildImports") continue;
-
-                    foreach (var error in target.Elements().Where(e => e.Name.LocalName == "Error"))
+                    // Microsoft.CodeDom.Providers.DotNetCompilerPlatform
+                    // Microsoft.Net.Compilers
+                    foreach (var import in root.Elements().Where(e => e.Name.LocalName == "Import"))
                     {
-                        var condition = error.Attribute("Condition");
+                        var project = import.Attribute("Project");
+                        if (project != null)
+                            //project.Value = project.Value.Replace(this.from, this.to);
+                            project.Value = Regex.Replace(project.Value, this.from, this.to);
+
+                        var condition = import.Attribute("Condition");
                         if (condition != null)
-                            condition.Value = condition.Value.Replace(this.from, this.to);
-
-                        var text = error.Attribute("Text");
-                        if (text != null)
-                            text.Value = text.Value.Replace(this.from, this.to);
+                            //condition.Value = condition.Value.Replace(this.from, this.to);
+                            condition.Value = Regex.Replace(condition.Value, this.from, this.to);
                     }
-                }
 
-                // nuget引用程序集  // ItemGroup==>Reference==>HintPath
-                foreach (XElement itemGroup in root.Elements().Where(e => e.Name.LocalName == "ItemGroup"))
-                {
-                    foreach (var reference in itemGroup.Elements().Where(e => e.Name.LocalName == "Reference"))
+                    // 此项目引用这台计算机上缺少的 NuGet 程序包。
+                    foreach (var target in root.Elements().Where(e => e.Name.LocalName == "Target"))
                     {
-                        foreach (var hintPath in reference.Elements().Where(e => e.Name.LocalName == "HintPath"))
+                        var nameAttribute = target.Attribute("Name");
+                        if (nameAttribute == null || nameAttribute.Value != "EnsureNuGetPackageBuildImports") continue;
+
+                        foreach (var error in target.Elements().Where(e => e.Name.LocalName == "Error"))
                         {
-                            hintPath.Value = hintPath.Value.Replace(this.from, this.to);
+                            var condition = error.Attribute("Condition");
+                            if (condition != null)
+                                //condition.Value = condition.Value.Replace(this.from, this.to);
+                                condition.Value = Regex.Replace(condition.Value, this.from, this.to);
+
+                            var text = error.Attribute("Text");
+                            if (text != null)
+                                //text.Value = text.Value.Replace(this.from, this.to);
+                                text.Value = Regex.Replace(text.Value, this.from, this.to);
                         }
                     }
+
+                    // nuget引用程序集  // ItemGroup==>Reference==>HintPath
+                    foreach (XElement itemGroup in root.Elements().Where(e => e.Name.LocalName == "ItemGroup"))
+                    {
+                        foreach (var reference in itemGroup.Elements().Where(e => e.Name.LocalName == "Reference"))
+                        {
+                            foreach (var hintPath in reference.Elements().Where(e => e.Name.LocalName == "HintPath"))
+                            {
+                                //hintPath.Value = hintPath.Value.Replace(this.from, this.to);
+                                hintPath.Value = Regex.Replace(hintPath.Value, this.from, this.to);
+                            }
+                        }
+                    }
+                    document.Save(path);
+
+                    this.Dispatcher.BeginInvoke(new Action(() =>
+                    {
+                        this.messages_TextBox.AppendText(path);
+                        this.messages_TextBox.AppendText("\n\n");
+                        this.messages_TextBox.ScrollToEnd();
+                    }));
                 }
-                document.Save(path);
-                this.messages_TextBox.AppendText(path);
-                this.messages_TextBox.AppendText("\n\n");
+                this.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    this.messages_TextBox.AppendText("共" + projFiles.Count + "个文件");
+                    MessageBox.Show("完成");
+                }));
             }
-        }
-
-        private void GetDir(string path)
-        {
-            var files = Directory.GetFiles(path);
-
-            foreach (var item in files)
+            catch (Exception ex)
             {
-                var filename = Path.GetExtension(item.ToLower());
-                if (filename != this.extension) continue;
-                this.projFiles.Add(item);
+                this.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    MessageBox.Show(ex.ToString());
+                }));
             }
-
-            var directories = Directory.GetDirectories(path);
-            foreach (var item in directories)
+            finally
             {
-                var filename = Path.GetFileName(item.ToLower());
-                if (this.excludes.Contains(filename)) continue;
-                this.GetDir(item);
+                this.Dispatcher.BeginInvoke(new Action(() =>
+                {
+                    this.ok_Button.IsEnabled = true;
+                    this.ok_Button.Content = "确定";
+                }));
             }
         }
     }
